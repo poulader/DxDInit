@@ -300,6 +300,7 @@ HRESULT DirectXManager::CreateRenderTargetView()
 		return -1;
 	}
 
+	
 	//Create a render target view to the back buffer. We can leave this NULL since we specified the type of the resource earlier.
 	if (FAILED(curDevice->CreateRenderTargetView(backBuffer, NULL, &bbRenderTargetView)))
 	{
@@ -324,7 +325,6 @@ HRESULT DirectXManager::CreateDepthStencilBufferAndView()
 		mgrState = STATE_INIT_ERROR;
 		return -1;
 	}
-
 
 
 	//Zero out the depthStencilDesc struct

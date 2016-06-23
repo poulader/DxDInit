@@ -24,24 +24,23 @@ typedef struct BoxVertex
 
 
 //subclass our base dx framework
-class BoxDemo : DxAppBase
+class BoxDemo : public DxAppBase
 {
 public:
 
-
+	BoxDemo(HINSTANCE hWnd);
+	virtual ~BoxDemo();
 
 	//virtual methods to implement
 	virtual bool InitApp();
 	virtual bool OnResizeHandler();
 	virtual void ProcSceneUpdate(float _dt);
-	virtual void ProcSceneDraw() = 0;
-
-	virtual LRESULT WndMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	virtual void ProcSceneDraw();
 
 	//Overrides for mouse input
-	virtual void HandleMouseDown(WPARAM bState, int x, int y) { }
-	virtual void HandleMouseUp(WPARAM bState, int x, int y) { }
-	virtual void HandleMouseMove(WPARAM bState, int x, int y) { }
+	virtual void HandleMouseDown(WPARAM bState, int x, int y);
+	virtual void HandleMouseUp(WPARAM bState, int x, int y);
+	virtual void HandleMouseMove(WPARAM bState, int x, int y);
 
 
 private:
@@ -72,14 +71,14 @@ private:
 	ID3D11InputLayout* pInputLayout;
 
 	//class fields for world, view, projection matrices
-	XMFLOAT4X4 mWorld;	//local to world matrix for our box (wont change)
-	XMFLOAT4X4 mView;	//World to view matrix (will change as camera position and orientation changes)
-	XMFLOAT4X4 mProj;	//View to homogenous clip space matrix (may change if aspect ratio of window changes)
+	XMFLOAT4X4 mWorld;	//local space to world space matrix for our box vertices (wont change)
+	XMFLOAT4X4 mView;	//World space to view space matrix (will change as camera position and orientation changes)
+	XMFLOAT4X4 mProj;	//View space to homogenous clip space matrix (may change if aspect ratio of window changes)
 
 
-	//spherical coordinates for camera
-	float mTheta; //angle of camera measured from x axis sweeping towards y axis in xy plane
-	float mPhi;	  //angle of camera measured from z axis sweeping through plane created by hypotenous of camera triangle in xy plane and z axis
+						//spherical coordinates for camera
+	float mTheta; //angle in xz plane from
+	float mPhi;	  //angle for y axis with "hinge" at origin, in plane created by the angle theta and y axis
 	float mRadius; //length in meters of radius, measured by ray from origin along phi
 
 	POINT mLastMousePos;	//last position of mouse right after they click in window
