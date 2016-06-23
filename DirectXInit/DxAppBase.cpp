@@ -52,7 +52,7 @@ DxAppBase::DxAppBase(HINSTANCE wndInstance)
 	:
 	handleAppInstance(NULL), strMainWindowCaption(_T("DX11 Application")), bEnforce4xMSAA(true),
 	handleMainWindow(NULL), bAppPaused(false), bAppMinimized(false), bAppMaximized(false),
-	bIsResizing(false), mClientWidth(1080), mClientHeight(1920), bFullScreen(false)
+	bIsResizing(false), mClientWidth(2560), mClientHeight(1440), bFullScreen(true)
 {
 
 	globalDxApp = this;
@@ -81,10 +81,7 @@ HWND DxAppBase::ProcWnd() const
 
 float DxAppBase::CurAspectRatio() const
 {
-	if (_dxMgr.GetCurrentState() <= STATE_MGR_FREE)
-		return -1.0;
-	else
-		return static_cast<float>(_dxMgr.GetClientWidth()) / _dxMgr.GetClientHeight();
+	return static_cast<float>(_dxMgr.GetClientWidth()) / _dxMgr.GetClientHeight();
 }
 
 int DxAppBase::Run()
@@ -329,54 +326,50 @@ LRESULT DxAppBase::WndMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		//Update our dxMgr's height and width
 		_dxMgr.SetClientDimensions(mClientHeight, mClientWidth);
 
-		if (_dxMgr.CurrentDevice())
+		if (wParam == SIZE_MINIMIZED)
 		{
 
-			if (wParam == SIZE_MINIMIZED)
-			{
+			bAppPaused = true;
+			bAppMinimized = true;
+			bAppMaximized = false;
+		}
+		else if (wParam == SIZE_MAXIMIZED)
+		{
+			bAppPaused = false;
+			bAppMinimized = false;
+			bAppMaximized = true;
+			_dxMgr.UnlockMgr();
+			OnResizeHandler();
+		}
+		else if (wParam == SIZE_RESTORED)
+		{
 
-				bAppPaused = true;
-				bAppMinimized = true;
-				bAppMaximized = false;
-			}
-			else if (wParam == SIZE_MAXIMIZED)
+			if (bAppMinimized)
 			{
+				//restore from minimized
 				bAppPaused = false;
 				bAppMinimized = false;
-				bAppMaximized = true;
 				_dxMgr.UnlockMgr();
-				_dxMgr.ResizeHandler();
+				OnResizeHandler();
 			}
-			else if (wParam == SIZE_RESTORED)
+			else if (bAppMaximized)
 			{
-
-				if (bAppMinimized)
-				{
-					//restore from minimized
-					bAppPaused = false;
-					bAppMinimized = false;
-					_dxMgr.UnlockMgr();
-					_dxMgr.ResizeHandler();
-				}
-				else if (bAppMaximized)
-				{
-					bAppPaused = false;
-					bAppMaximized = false;
-					_dxMgr.UnlockMgr();
-					_dxMgr.ResizeHandler();
-				}
-				else if (bIsResizing)
-				{
-					//Still dragging size bar around...
+				bAppPaused = false;
+				bAppMaximized = false;
+				_dxMgr.UnlockMgr();
+				OnResizeHandler();
+			}
+			else if (bIsResizing)
+			{
+				//Still dragging size bar around...
 
 
 
-				}
-				else
-				{
-					_dxMgr.UnlockMgr();
-					_dxMgr.ResizeHandler();
-				}
+			}
+			else
+			{
+				_dxMgr.UnlockMgr();
+				OnResizeHandler();
 			}
 		}
 
