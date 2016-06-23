@@ -57,8 +57,7 @@ bool BoxDemo::InitApp()
 bool BoxDemo::OnResizeHandler()
 {
 
-	if (!DxAppBase::OnResizeHandler())
-		return false;
+	DxAppBase::OnResizeHandler();
 
 	//Window resized, update aspect ratio, recompute the projection matrix
 
@@ -171,7 +170,7 @@ void BoxDemo::HandleMouseUp(WPARAM bState, int x, int y)
 void BoxDemo::HandleMouseMove(WPARAM bState, int x, int y)
 {
 
-	if (bState & MK_LBUTTON != 0)
+	if ((bState & MK_LBUTTON) != 0)
 	{
 
 		//make each pixel correspond to a quarter of a degree
@@ -185,7 +184,7 @@ void BoxDemo::HandleMouseMove(WPARAM bState, int x, int y)
 		//restrict angle mPhi
 		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
 	}
-	else if (bState & MK_RBUTTON != 0)
+	else if ((bState & MK_RBUTTON) != 0)
 	{
 
 		//adjust radius
@@ -287,8 +286,21 @@ void BoxDemo::BuildGeometryBuffers()
 
 void BoxDemo::BuildFX()
 {
+	std::string targetFile;
+#ifdef _DEBUG
+	targetFile = "fx/color.cso";
+#else
+	targetFile = "fx/color.cso";
+#endif
+	std::ifstream fin(targetFile, std::ios::binary);
 
-	std::ifstream fin(_T("color.cso"), std::ios::binary);
+	if (fin.fail())
+	{
+		fin.close();
+		DXTrace(__FILE__, (DWORD)__LINE__, 0, 0, true);
+		//panic!
+		MessageBox(NULL, _T("Couldnt open shader"), _T("error"), MB_ABORTRETRYIGNORE);
+	}
 
 	fin.seekg(0, std::ios_base::end);
 	int size = (int)fin.tellg();
@@ -306,7 +318,7 @@ void BoxDemo::BuildFX()
 
 	pTech = pFX->GetTechniqueByName("ColorTech");
 
-	pfxWorldViewProj = pFX->GetConstantBufferByName("gWorldViewProj")->AsMatrix();
+	pfxWorldViewProj = pFX->GetVariableByName("gWorldViewProj")->AsMatrix();
 
 }
 
