@@ -52,7 +52,7 @@ DxAppBase::DxAppBase(HINSTANCE wndInstance)
 	:
 	handleAppInstance(NULL), strMainWindowCaption(_T("DX11 Application")), bEnforce4xMSAA(true),
 	handleMainWindow(NULL), bAppPaused(false), bAppMinimized(false), bAppMaximized(false),
-	bIsResizing(false), mClientWidth(2560), mClientHeight(1440), bFullScreen(true)
+	bIsResizing(false), mClientWidth(1920), mClientHeight(1080), bFullScreen(false), maxFramesPerSecond(120)
 {
 
 	globalDxApp = this;
@@ -109,6 +109,9 @@ int DxAppBase::Run()
 			if (!bAppPaused)
 			{
 				FrameStatUpdate();
+
+
+
 				ProcSceneUpdate(_gameTimer.DeltaTime());
 				ProcSceneDraw();
 			}
@@ -308,8 +311,6 @@ LRESULT DxAppBase::WndMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		DWORD waitResult = 0;
 		if ( (waitResult = WaitForSingleObject(resizeLock, 50)) == WAIT_TIMEOUT)
 		{
-			//We are already handling a resize or starting the app up right now, perhaps later launch a new thread which waits
-			//until the current task is done then processes the new size.
 			return -WAIT_TIMEOUT;
 		}
 		else if (waitResult != 0)
@@ -334,7 +335,7 @@ LRESULT DxAppBase::WndMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			bAppMaximized = false;
 		}
 		else if (wParam == SIZE_MAXIMIZED)
-		{
+		{ 
 			bAppPaused = false;
 			bAppMinimized = false;
 			bAppMaximized = true;
@@ -442,22 +443,34 @@ LRESULT DxAppBase::WndMsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
 //Direct from Frank Luna's code w/ some additions to account for unicode/ansi
-
+//Added max FPS enforcement, demo was running at 4k frames per second
 void DxAppBase::FrameStatUpdate()
 {
 	// Code computes the average frames per second, and also the 
 	// average time it takes to render one frame.  These stats 
 	// are appended to the window caption bar.
 
-	static int frameCnt = 0;
-	static float timeElapsed = 0.0f;
 
-	frameCnt++;
+	static int nFrames = 0;
+	static float timeElapsed = 0;
+
+	//min time between frames in seconds (will be fraction of a second)
+	static float frameInterval = (1.0f) / maxFramesPerSecond;
+	nFrames++;
+
+	//Check to see if our current timer delta is less than the min time between frames
+	if (_gameTimer.DeltaTime() < frameInterval)
+	{
+		//If so, sleep for the difference
+		Sleep((frameInterval - _gameTimer.DeltaTime()) * 1000);
+		//Update timer delta
+		_gameTimer.Tick();
+	}
 
 	// Compute averages over one second period.
 	if ((_gameTimer.TotalTime() - timeElapsed) >= 1.0f)
 	{
-		float fps = (float)frameCnt; // fps = frameCnt / 1
+		float fps = (float)nFrames; // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
 		std::wostringstream outs;
@@ -468,7 +481,7 @@ void DxAppBase::FrameStatUpdate()
 		SetWindowText(handleMainWindow, outs.str().c_str());
 
 		// Reset for next average.
-		frameCnt = 0;
+		nFrames = 0;
 		timeElapsed += 1.0f;
 	}
 }

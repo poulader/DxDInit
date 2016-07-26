@@ -7,15 +7,16 @@
 #include <tchar.h>
 #include "d3dx11effect.h"
 #include <xnamath.h>
-#include "BoxDemo.h"
+#include "HillsDemo.h"
 #include <iostream>
+#include "EPGeometryGenerator.h"
 
-BoxDemo::BoxDemo(HINSTANCE hWnd)
-	: DxAppBase(hWnd), pBoxVertexBuffer(NULL), pBoxIndexBuffer(NULL), pFX(NULL), pTech(NULL),
-	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.25f * MathHelper::Pi), mRadius(5.0f)
+HillsDemo::HillsDemo(HINSTANCE hWnd)
+	: DxAppBase(hWnd), pHillsVertexBuffer(NULL), pHillsIndexBuffer(NULL), pFX(NULL), pTech(NULL),
+	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.25f * MathHelper::Pi), mRadius(5.0f), mGridIndexCount(0), mGridVertexCount(0)
 {
 
-	strMainWindowCaption = _T("Box Demo");
+	strMainWindowCaption = _T("Hills Demo");
 
 	mLastMousePos.x = mLastMousePos.y = 0;
 
@@ -27,17 +28,16 @@ BoxDemo::BoxDemo(HINSTANCE hWnd)
 	XMStoreFloat4x4(&mProj, I);
 }
 
-BoxDemo::~BoxDemo()
+HillsDemo::~HillsDemo()
 {
-
-	ReleaseCOM(pBoxVertexBuffer);
-	ReleaseCOM(pBoxIndexBuffer);
+	ReleaseCOM(pHillsVertexBuffer);
+	ReleaseCOM(pHillsIndexBuffer);
 	ReleaseCOM(pFX);
 	ReleaseCOM(pInputLayout);
 }
 
 
-bool BoxDemo::InitApp()
+bool HillsDemo::InitApp()
 {
 
 	if (!DxAppBase::InitApp())
@@ -54,7 +54,7 @@ bool BoxDemo::InitApp()
 }
 
 
-bool BoxDemo::OnResizeHandler()
+bool HillsDemo::OnResizeHandler()
 {
 
 	DxAppBase::OnResizeHandler();
@@ -66,7 +66,7 @@ bool BoxDemo::OnResizeHandler()
 	return true;
 }
 
-void BoxDemo::ProcSceneUpdate(float dt)
+void HillsDemo::ProcSceneUpdate(float dt)
 {
 
 	//Convert spherical coords to radial
@@ -86,7 +86,7 @@ void BoxDemo::ProcSceneUpdate(float dt)
 
 
 
-void BoxDemo::ProcSceneDraw()
+void HillsDemo::ProcSceneDraw()
 {
 
 	//lock manager
@@ -108,14 +108,14 @@ void BoxDemo::ProcSceneDraw()
 	//set topology
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	UINT stride = sizeof(BoxVertex);
+	UINT stride = sizeof(HillsVertex);
 	UINT offset = 0;
 
 	//set vertex buffer
-	pContext->IASetVertexBuffers(0, 1, &pBoxVertexBuffer, &stride, &offset);
+	pContext->IASetVertexBuffers(0, 1, &pHillsVertexBuffer, &stride, &offset);
 
 	//set index buffer
-	pContext->IASetIndexBuffer(pBoxIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	pContext->IASetIndexBuffer(pHillsIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 
 	//set constants
@@ -139,7 +139,7 @@ void BoxDemo::ProcSceneDraw()
 		pTech->GetPassByIndex(p)->Apply(0, pContext);
 
 		//Draw the 36 indicies into the vertex buffer to the back buffer
-		pContext->DrawIndexed(36, 0, 0);
+		pContext->DrawIndexed(mGridIndexCount, 0, 0);
 
 	}
 
@@ -152,7 +152,7 @@ void BoxDemo::ProcSceneDraw()
 }
 
 
-void BoxDemo::HandleMouseDown(WPARAM bState, int x, int y)
+void HillsDemo::HandleMouseDown(WPARAM bState, int x, int y)
 {
 
 	mLastMousePos.x = x;
@@ -161,13 +161,13 @@ void BoxDemo::HandleMouseDown(WPARAM bState, int x, int y)
 	SetCapture(this->handleMainWindow);
 }
 
-void BoxDemo::HandleMouseUp(WPARAM bState, int x, int y)
+void HillsDemo::HandleMouseUp(WPARAM bState, int x, int y)
 {
 	ReleaseCapture();
 }
 
 
-void BoxDemo::HandleMouseMove(WPARAM bState, int x, int y)
+void HillsDemo::HandleMouseMove(WPARAM bState, int x, int y)
 {
 
 	if ((bState & MK_LBUTTON) != 0)
@@ -187,15 +187,15 @@ void BoxDemo::HandleMouseMove(WPARAM bState, int x, int y)
 	else if ((bState & MK_RBUTTON) != 0)
 	{
 
-		//adjust radius
-		float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
-		float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
+		//and lets change this so we can move in direction we are facing using y axis
+		float dx = 0.010f * static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.010f * static_cast<float>(y - mLastMousePos.y);
 
 		//update camera radius based on input
-		mRadius += dx - dy;
+		mRadius += dx -dy;
 
 		//restrict the radius
-		mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
+		mRadius = MathHelper::Clamp(mRadius, 50.0f, 500.0f);
 	}
 
 	mLastMousePos.x = x;
@@ -203,88 +203,97 @@ void BoxDemo::HandleMouseMove(WPARAM bState, int x, int y)
 
 }
 
-void BoxDemo::BuildGeometryBuffers()
+float HillsDemo::GetHeight(float x, float z) const
+{
+	return 0.3f*(z*sinf(0.1f*x) + x*cosf(0.1f*z));
+}
+
+void HillsDemo::BuildGeometryBuffers()
 {
 
-	BoxVertex vertices[] = {
-		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), (const float*)&Colors::White },
-		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), (const float*)&Colors::Black },
-		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), (const float*)&Colors::Red },
-		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), (const float*)&Colors::Green },
-		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), (const float*)&Colors::Blue },
-		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), (const float*)&Colors::Yellow },
-		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), (const float*)&Colors::Cyan },
-		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), (const float*)&Colors::Magenta }
-	};
+	EPGeometry::EPGeometryGenerator::MeshData grid;
 
-	D3D11_BUFFER_DESC	vbd;
-	ZeroMemory(&vbd, sizeof(D3D11_BUFFER_DESC));
+	HRESULT gridResult = EPGeometry::EPGeometryGenerator::CreateGrid(160.0f, 160.0f, 50, 50, grid);
 
+	mGridIndexCount = grid.Indices.size();
+	mGridVertexCount = grid.Vertices.size();
+
+	std::vector<HillsVertex> vertices(mGridVertexCount);
+
+	for (size_t i = 0; i < mGridVertexCount; i++)
+	{
+
+		XMFLOAT3 p = grid.Vertices[i].Position;
+
+		p.y = GetHeight(p.x, p.z);
+
+		vertices[i].Pos = p;
+
+		//color vertex based on height
+		if (p.y < -10.f)
+		{
+			//sandy beach
+			vertices[i].Color = XMFLOAT4(10.f, 0.96f, 0.62f, 1.0f);
+		}
+		else if (p.y < 0.5f)
+		{
+			//light yellow-green
+			vertices[i].Color = XMFLOAT4(0.48f, 0.77f, 0.46f, 1.0f);
+		}
+		else if (p.y < 12.0f)
+		{
+			//dark yellow-green
+			vertices[i].Color = XMFLOAT4(0.1f, 0.48f, 0.19f, 1.0f);
+		}
+		else if (p.y < 20.f)
+		{
+			//dark brown
+			vertices[i].Color = XMFLOAT4(0.45f, 0.39f, 0.34f, 1.0f);
+		}
+		else
+		{
+			//white snow
+			vertices[i].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		}
+	}
+
+	//Create our vertex buffers
+	D3D11_BUFFER_DESC vbd, ibd;
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.ByteWidth = sizeof(BoxVertex) * 8;
-	vbd.CPUAccessFlags = 0;
-	vbd.MiscFlags = 0;
-	vbd.StructureByteStride = 0;
+	vbd.ByteWidth = mGridVertexCount * sizeof(HillsVertex);
+	vbd.CPUAccessFlags = vbd.MiscFlags = vbd.StructureByteStride = 0;
 	vbd.Usage = D3D11_USAGE_IMMUTABLE;
+	
+	D3D11_SUBRESOURCE_DATA vinitData, iinitData;
+	vinitData.SysMemPitch = vinitData.SysMemSlicePitch = 0;
+	vinitData.pSysMem = &vertices[0];
 
-	D3D11_SUBRESOURCE_DATA vInitData;
-	vInitData.pSysMem = vertices;
-	vInitData.SysMemPitch = vInitData.SysMemSlicePitch = 0;
+	//Create our index buffer
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.Usage = D3D11_USAGE_IMMUTABLE;
+	ibd.CPUAccessFlags = ibd.MiscFlags = ibd.StructureByteStride = 0;
+	ibd.ByteWidth = mGridIndexCount * sizeof(UINT);
 
+	iinitData.SysMemPitch = iinitData.SysMemSlicePitch = 0;
+
+	//We don't need to change our indices, we can use them directly from grid
+	iinitData.pSysMem = &grid.Indices[0];
+
+	//lock mgr
 	_dxMgr.LockMgr();
 
-	//create-a da buffer
-	HR(_dxMgr.CurrentDevice()->CreateBuffer(&vbd, &vInitData, &pBoxVertexBuffer));
+	//create our vertex buffer
+	HR(_dxMgr.CurrentDevice()->CreateBuffer(&vbd, &vinitData, &pHillsVertexBuffer));
 
-	//Create index buffer
+	//Create our index buffer
+	HR(_dxMgr.CurrentDevice()->CreateBuffer(&ibd, &iinitData, &pHillsIndexBuffer));
 
-	UINT indices[] =
-	{
-		//front face
-		0,1,2,
-		0,2,3,
-
-		//back face
-		4,6,5,
-		4,7,6,
-
-		//left face
-		4,5,1,
-		4,1,0,
-
-		//right face
-		3,2,6,
-		3,6,7,
-
-		//top face
-		1,5,6,
-		1,6,2,
-
-		//bottom face
-		4,0,3,
-		4,3,7
-
-	};
-
-	D3D11_BUFFER_DESC ibd;
-	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.ByteWidth = sizeof(UINT) * 36;
-	ibd.CPUAccessFlags = 0;
-	ibd.MiscFlags = 0;
-	ibd.StructureByteStride = 0;
-	ibd.Usage = D3D11_USAGE_IMMUTABLE;
-
-	D3D11_SUBRESOURCE_DATA iBuffData;
-
-	iBuffData.pSysMem = indices;
-	iBuffData.SysMemPitch = iBuffData.SysMemSlicePitch = 0;
-
-	HR(_dxMgr.CurrentDevice()->CreateBuffer(&ibd, &iBuffData, &pBoxIndexBuffer));
-
+	//unlock mgr
 	_dxMgr.UnlockMgr();
 }
 
-void BoxDemo::BuildFX()
+void HillsDemo::BuildFX()
 {
 	std::string targetFile;
 #ifdef _DEBUG
@@ -322,7 +331,7 @@ void BoxDemo::BuildFX()
 
 }
 
-void BoxDemo::BuildVertexLayout()
+void HillsDemo::BuildVertexLayout()
 {
 
 	//create vertex input layout
@@ -345,13 +354,6 @@ void BoxDemo::BuildVertexLayout()
 }
 
 
-
-
-
-
-
-
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 	PSTR cmdLine, int showCmd)
 {
@@ -359,7 +361,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-	BoxDemo theApp(hInstance);
+#ifdef _testingMASM
+
+
+#endif
+
+	HillsDemo theApp(hInstance);
 
 	if (!theApp.InitApp())
 	{

@@ -12,7 +12,7 @@
 
 //define our vertex structure
 
-typedef struct BoxVertex
+typedef struct HillsVertex
 {
 	//position
 	XMFLOAT3 Pos;
@@ -20,16 +20,16 @@ typedef struct BoxVertex
 	//color
 	XMFLOAT4 Color;
 
-} BoxVertex, *pBoxVertex;
+} HillsVertex, *pHillsVertex;
 
 
 //subclass our base dx framework
-class BoxDemo : public DxAppBase
+class HillsDemo : public DxAppBase
 {
 public:
 
-	BoxDemo(HINSTANCE hWnd);
-	virtual ~BoxDemo();
+	HillsDemo(HINSTANCE hWnd);
+	virtual ~HillsDemo();
 
 	//virtual methods to implement
 	virtual bool InitApp();
@@ -54,11 +54,13 @@ private:
 	//Build our vertex layouts
 	void BuildVertexLayout();
 
+	inline float GetHeight(float x, float z) const;
+
 private:
 
 	//Internal class fields
-	ID3D11Buffer *pBoxVertexBuffer;
-	ID3D11Buffer *pBoxIndexBuffer;
+	ID3D11Buffer *pHillsVertexBuffer;
+	ID3D11Buffer *pHillsIndexBuffer;
 
 	//Handle to effects11 interface
 	ID3DX11Effect *pFX;
@@ -74,6 +76,9 @@ private:
 	XMFLOAT4X4 mWorld;	//local space to world space matrix for our box vertices (wont change)
 	XMFLOAT4X4 mView;	//World space to view space matrix (will change as camera position and orientation changes)
 	XMFLOAT4X4 mProj;	//View space to homogenous clip space matrix (may change if aspect ratio of window changes)
+
+	UINT mGridIndexCount;
+	UINT mGridVertexCount;
 
 
 						//spherical coordinates for camera

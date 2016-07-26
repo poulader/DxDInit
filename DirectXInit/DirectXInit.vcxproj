@@ -29,7 +29,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>Intel C++ Compiler 16.0</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -100,6 +100,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>d3d11.lib;d3dx11d.lib;D3DCompiler.lib;Effects11d.lib;dxerr.lib;dxgi.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(DX_SDK_DIR)\Lib\x86;D:\Coding\Dx11\Common\VS2012Effects11\x86\OldName\Debug;C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>"notelemetry.obj" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <FxCompile>
       <ObjectFileOutput>$(ProjectDir)%$(Configuration)%(Filename).cso</ObjectFileOutput>
@@ -121,6 +122,7 @@
     <FxCompile>
       <ShaderType>Effect</ShaderType>
       <ObjectFileOutput>$(ProjectDir)\fx\%(Filename).cso</ObjectFileOutput>
+      <ShaderModel>5.0</ShaderModel>
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -159,9 +161,10 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BoxDemo.h" />
+    <ClInclude Include="HillsDemo.h" />
     <ClInclude Include="DirectXInit.h" />
     <ClInclude Include="DxAppBase.h" />
+    <ClInclude Include="EPGeometryGenerator.h" />
     <ClInclude Include="InitManager.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="ScopeLock.h" />
@@ -169,9 +172,10 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BoxDemo.cpp" />
+    <ClCompile Include="HillsDemo.cpp" />
     <ClCompile Include="D:\Coding\Dx11\Common\MathHelper.cpp" />
     <ClCompile Include="DxAppBase.cpp" />
+    <ClCompile Include="EPGeometryGenerator.cpp" />
     <ClCompile Include="InitManager.cpp" />
     <ClCompile Include="ScopeLock.cpp" />
     <ClCompile Include="stdafx.cpp">
