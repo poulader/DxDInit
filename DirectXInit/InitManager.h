@@ -87,16 +87,15 @@ public:
 	}
 
 	//Lock should be obtained before calling any of these, and released after.
-	inline ID3D11Device *CurrentDevice() const { return curDevice; };
+	inline ID3D11Device *CurrentDevice() { return curDevice; };
 	inline ID3D11DeviceContext *CurrentDeviceContext() const { return curDeviceContext; };
-	inline IDXGISwapChain *CurrentSwapChain() const { return curSwapChain; };
+	inline IDXGISwapChain *CurrentSwapChain() { return curSwapChain; };
 	inline ID3D11RenderTargetView *CurrentRenderTargetView() const { return bbRenderTargetView; };
 	inline DXGI_SWAP_CHAIN_DESC& CurrentSwapChainDesc() { return curSwapChainDesc; };
 	inline D3D11_TEXTURE2D_DESC& CurrentDepthStencilDesc() { return depthStencilDesc; };
 	inline ID3D11Texture2D* CurrentDepthStencilBuffer() { return mDepthStencilBuffer; };
 	inline ID3D11DepthStencilView* CurrentDepthStencilView() { return mDepthStencilView; };
 	inline D3D11_VIEWPORT& GetCurrentViewPort() { return curViewport; };
-
 
 private:
 

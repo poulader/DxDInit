@@ -213,3 +213,5 @@ ModelManifest.xml
 *.opendb
 DirectXInit/DirectXInit.vcxproj.filters
 *.db
+/DirectXInit/My Amplifier XE Results - D3DXInit/My Amplifier XE Results - D3DXInit.amplxeproj
+/DirectXInit/Þbugcolor.cso

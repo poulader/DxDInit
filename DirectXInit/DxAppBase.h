@@ -54,6 +54,8 @@ public:
 	virtual void HandleMouseUp(WPARAM bState, int x, int y) { }
 	virtual void HandleMouseMove(WPARAM bState, int x, int y) { }
 
+	inline void	   SetMaxFramesPerSecond(float nMaxFPS) { if (nMaxFPS <= 30 || nMaxFPS > 200) return; maxFramesPerSecond = nMaxFPS; };
+
 
 protected:
 
@@ -81,6 +83,9 @@ protected:
 
 	int mClientWidth;
 	int mClientHeight;
+
+	//default to 120
+	float maxFramesPerSecond;
 
 #ifdef UNICODE
 	std::wstring strMainWindowCaption;

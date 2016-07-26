@@ -449,6 +449,20 @@ bool DirectXManager::ResizeHandler()
 	//Release depth stencil buffer
 	COMRelease(mDepthStencilBuffer);
 
+	//hardcode for now
+	if (wWidth < 100 || wWidth > 2560)
+	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
+	}
+	else if (wHeight < 100 || wHeight > 1440)
+	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
+	}
+
 	//Update swap chain buffer, make render target view again
 
 	//Note that even if we fail at some stage in here, we can still use lastValidState as our reference for what to do in the
@@ -457,6 +471,10 @@ bool DirectXManager::ResizeHandler()
 	//For now we are doing double buffering, just 1 buffer. Change to new width/height.
 	if (FAILED(curSwapChain->ResizeBuffers(1, wWidth, wHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0)))
 	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
+
 		mgrState = STATE_INIT_ERROR;
 		return false;
 	}
@@ -474,6 +492,9 @@ bool DirectXManager::ResizeHandler()
 	//properties through the swap chain descriptor struct, so we can pass in NULL for the second param.
 	if (FAILED(curDevice->CreateRenderTargetView(backBuf, NULL, &bbRenderTargetView)))
 	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
 		mgrState = STATE_INIT_ERROR;
 		return false;
 	}
@@ -516,22 +537,35 @@ bool DirectXManager::ResizeHandler()
 	//create view to depth stencil buffer
 	if (FAILED(curDevice->CreateDepthStencilView(mDepthStencilBuffer, NULL, &mDepthStencilView)))
 	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
 		mgrState = STATE_INIT_ERROR;
 		return false;
 	}
 
-	//bind depth/stencil view and render target view to the pipeline
-	curDeviceContext->OMSetRenderTargets(1, &bbRenderTargetView, mDepthStencilView);
+	try
+	{
 
-	//Set viewport
-	curViewport.TopLeftX = 0;
-	curViewport.TopLeftY = 0;
-	curViewport.Width = (float)wWidth;
-	curViewport.Height = (float)wHeight;
-	curViewport.MinDepth = 0.0f;
-	curViewport.MaxDepth = 1.0f;
+		//bind depth/stencil view and render target view to the pipeline
+		curDeviceContext->OMSetRenderTargets(1, &bbRenderTargetView, mDepthStencilView);
 
-	curDeviceContext->RSSetViewports(1, &curViewport);
+		//Set viewport
+		curViewport.TopLeftX = 0;
+		curViewport.TopLeftY = 0;
+		curViewport.Width = (float)wWidth;
+		curViewport.Height = (float)wHeight;
+		curViewport.MinDepth = 0.0f;
+		curViewport.MaxDepth = 1.0f;
+
+		curDeviceContext->RSSetViewports(1, &curViewport);
+	}
+	catch (...)
+	{
+		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		throw std::exception();
+		std::abort();
+	}
 
 	return true;
 }
