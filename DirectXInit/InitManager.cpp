@@ -48,7 +48,7 @@ inline bool COMRelease(IUnknown *targetCOM)
 }
 
 
-//TODO: Make an inline function for if any calls fail, to automatically release any com interfaces we have aqquired depending on mgrState
+//the interface must release any held resources in its destructor
 
 DirectXManager::DirectXManager() : 
 	curDevice(NULL), curDeviceContext(NULL), mutexHandle(NULL), mgrState(STATE_MGR_FREE), lastValidState(STATE_MGR_FREE), 
@@ -197,7 +197,7 @@ HRESULT DirectXManager::DescribeSwapChain(bool switchMSAA, bool fullScreen, UINT
 	curSwapChainDesc.BufferCount = 1;
 	//Set output window to current window...
 	curSwapChainDesc.OutputWindow = wCurWnd;
-	curSwapChainDesc.Windowed = wWindowed > 0 ? true : false;
+	curSwapChainDesc.Windowed = /*wWindowed > 0 ? true : false;*/ true;
 
 	//Let the adapter choose the most efficient presentation method
 	curSwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -459,6 +459,7 @@ bool DirectXManager::ResizeHandler()
 	else if (wHeight < 100 || wHeight > 1440)
 	{
 		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		curSwapChain->SetFullscreenState(FALSE, NULL);
 		throw std::exception();
 		std::abort();
 	}
@@ -472,6 +473,7 @@ bool DirectXManager::ResizeHandler()
 	if (FAILED(curSwapChain->ResizeBuffers(1, wWidth, wHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0)))
 	{
 		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		curSwapChain->SetFullscreenState(FALSE, NULL);
 		throw std::exception();
 		std::abort();
 
@@ -493,6 +495,7 @@ bool DirectXManager::ResizeHandler()
 	if (FAILED(curDevice->CreateRenderTargetView(backBuf, NULL, &bbRenderTargetView)))
 	{
 		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		curSwapChain->SetFullscreenState(FALSE, NULL);
 		throw std::exception();
 		std::abort();
 		mgrState = STATE_INIT_ERROR;
@@ -538,6 +541,7 @@ bool DirectXManager::ResizeHandler()
 	if (FAILED(curDevice->CreateDepthStencilView(mDepthStencilBuffer, NULL, &mDepthStencilView)))
 	{
 		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		curSwapChain->SetFullscreenState(FALSE, NULL);
 		throw std::exception();
 		std::abort();
 		mgrState = STATE_INIT_ERROR;
@@ -563,6 +567,7 @@ bool DirectXManager::ResizeHandler()
 	catch (...)
 	{
 		//lets add a bail here since I am occasionaly getting stuck on resize, probably some message im not handling in msg loop
+		curSwapChain->SetFullscreenState(FALSE, NULL);
 		throw std::exception();
 		std::abort();
 	}

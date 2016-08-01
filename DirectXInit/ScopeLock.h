@@ -24,27 +24,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 class Uncopyable
 {
-public:
+protected:
 	Uncopyable() {};
 private:
 	Uncopyable& operator=(const Uncopyable&);
 	Uncopyable(const Uncopyable&);
 };
 
-class ScopeLock : public Uncopyable
+class ScopeLock : private Uncopyable
 {
-
 public:
 	ScopeLock(HANDLE &m);
 	~ScopeLock();
-	//No copy operator for you
-	ScopeLock& operator=(const ScopeLock&);
 
 private:
 	HANDLE &mutexHandle;
-
-
-
-	//No copy constructor for you
-	ScopeLock(const ScopeLock&);
 };

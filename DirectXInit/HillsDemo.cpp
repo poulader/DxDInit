@@ -1,3 +1,5 @@
+#define DIRECTINPUT_VERSION 0x0800
+
 #include <Windows.h>
 #include <d3d11.h>
 #include "DxAppBase.h"
@@ -10,11 +12,18 @@
 #include "HillsDemo.h"
 #include <iostream>
 #include "EPGeometryGenerator.h"
+#include "DirectInputHandler.h"
+
+using namespace EPDirectInput;
 
 HillsDemo::HillsDemo(HINSTANCE hWnd)
 	: DxAppBase(hWnd), pHillsVertexBuffer(NULL), pHillsIndexBuffer(NULL), pFX(NULL), pTech(NULL),
 	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.25f * MathHelper::Pi), mRadius(5.0f), mGridIndexCount(0), mGridVertexCount(0)
 {
+
+	EPDirectInputMgr mgr(hWnd);
+	mgr.OpenInputMgr();
+	mgr.OpenInputDeviceOfType(EP_INPUT_KBD);
 
 	strMainWindowCaption = _T("Hills Demo");
 
