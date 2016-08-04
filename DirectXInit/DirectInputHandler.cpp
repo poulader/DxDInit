@@ -99,8 +99,10 @@ HRESULT EPDirectInputMgr::ImplOpenInputDeviceOfType(INPUT_CLASS deviceClass)
 
 	HRESULT createResult = 0;
 
+	//move this to a private function
 	if (deviceClass == EP_INPUT_KBD)
 	{
+		assert(pdIkbd == NULL);
 		pdIkbd = new EPDirectInputDevice(EP_INPUT_KBD);
 		assert(pdIkbd != NULL);
 		_isKbdCreated = true;
@@ -108,6 +110,7 @@ HRESULT EPDirectInputMgr::ImplOpenInputDeviceOfType(INPUT_CLASS deviceClass)
 		if (pdIkbd->GetDeviceState() != DID_FREE)
 		{
 			delete  pdIkbd;
+			pdIkbd = NULL;
 			_isKbdCreated = false;
 			LogLastError(-3, _T("Error creating the device."));
 			return -3;
@@ -127,6 +130,7 @@ HRESULT EPDirectInputMgr::ImplOpenInputDeviceOfType(INPUT_CLASS deviceClass)
 	}
 	else
 	{
+		assert(pdImouse == NULL);
 		pdImouse = new EPDirectInputDevice(EP_INPUT_KBD);
 		assert(pdImouse != NULL);
 		_isMouseCreated = true;

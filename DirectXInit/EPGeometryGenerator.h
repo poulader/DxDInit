@@ -54,6 +54,16 @@ namespace EPGeometry
 
 		static HRESULT CreateGrid(float width, float depth, UINT m, UINT n, MeshData& meshData);
 
+		static HRESULT CreateCylinder(UINT slices, UINT stackCount, float height, float topRadius, float bottomRadius, MeshData& meshData);
+
+		static HRESULT CreateSphere(UINT slices, UINT stackCount, float radius, MeshData& meshData);
+
+	private:
+
+		static HRESULT BuildCylinderTopCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
+		static HRESULT BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
+
+
 
 
 	};
