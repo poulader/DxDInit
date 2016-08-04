@@ -160,7 +160,7 @@ bool DxAppBase::ProcWndInit()
 	wc.hInstance = handleAppInstance;
 	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
 	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+	wc.hbrBackground = NULL;
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = _T("D3DWndClassName");
 
