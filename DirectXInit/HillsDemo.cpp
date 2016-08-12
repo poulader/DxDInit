@@ -19,11 +19,15 @@ using namespace EPDirectInput;
 HillsDemo::HillsDemo(HINSTANCE hWnd)
 	: DxAppBase(hWnd), pHillsVertexBuffer(NULL), pHillsIndexBuffer(NULL), pFX(NULL), pTech(NULL),
 	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.25f * MathHelper::Pi), mRadius(5.0f), mGridIndexCount(0), mGridVertexCount(0)
+
+	//quick shapes test as I want to sleep
+	,mShapesIndexCountSphere(0), mShapesVertexCountSphere(0), pShapesIndexBuffer(NULL), pShapesVertexBuffer(NULL), mSphereStacks(8), mSphereSlices(8), mSphereRadius(2)
+
 {
 
-	EPDirectInputMgr mgr(hWnd);
-	mgr.OpenInputMgr();
-	mgr.OpenInputDeviceOfType(EP_INPUT_KBD);
+	//EPDirectInputMgr mgr(hWnd);
+	//mgr.OpenInputMgr();
+	//mgr.OpenInputDeviceOfType(EP_INPUT_KBD);
 
 	strMainWindowCaption = _T("Hills Demo");
 
@@ -35,12 +39,21 @@ HillsDemo::HillsDemo(HINSTANCE hWnd)
 	XMStoreFloat4x4(&mWorld, I);
 	XMStoreFloat4x4(&mView, I);
 	XMStoreFloat4x4(&mProj, I);
+	
+	//quick shape test, have it float 10 units above origin
+	mWorldSphere = XMFLOAT4X4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,10,0,1);
 }
 
 HillsDemo::~HillsDemo()
 {
 	ReleaseCOM(pHillsVertexBuffer);
 	ReleaseCOM(pHillsIndexBuffer);
+
+	//start shapes test
+	ReleaseCOM(pShapesVertexBuffer);
+	ReleaseCOM(pShapesIndexBuffer);
+	//end shapes test
+
 	ReleaseCOM(pFX);
 	ReleaseCOM(pInputLayout);
 }
@@ -152,6 +165,32 @@ void HillsDemo::ProcSceneDraw()
 
 	}
 
+
+	//draw our sphere, we can use the same input layout, same technique, same constant buffer (but update with sphere world matrix), but need to change vertex/index buffers
+	pContext->IASetVertexBuffers(0, 1, &pShapesVertexBuffer, &stride, &offset);
+	pContext->IASetIndexBuffer(pShapesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	XMMATRIX sphereWVP = XMMatrixIdentity();
+
+	//local to world transform
+	XMMATRIX sW = XMLoadFloat4x4(&mWorldSphere);
+
+	//view and proj same
+	sphereWVP = sW * view * proj;
+
+	//update our local copy ofconstant buffer
+	pfxWorldViewProj->SetMatrix(reinterpret_cast<float*>(&sphereWVP));
+
+	for (UINT p = 0; p < techDesc.Passes; ++p)
+	{
+		pTech->GetPassByIndex(p)->Apply(0, pContext);
+
+		//draw our indices
+		pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
+	}
+
+
+
 	//flip the back buffer and... front buffer?
 	HR(_dxMgr.CurrentSwapChain()->Present(0, 0));
 
@@ -220,14 +259,28 @@ float HillsDemo::GetHeight(float x, float z) const
 void HillsDemo::BuildGeometryBuffers()
 {
 
-	EPGeometry::EPGeometryGenerator::MeshData grid;
+	EPGeometry::EPGeometryGenerator::MeshData grid, sphereTestMesh;
 
 	HRESULT gridResult = EPGeometry::EPGeometryGenerator::CreateGrid(160.0f, 160.0f, 50, 50, grid);
+
+	//quick shapes test
+	HRESULT sphereTestResult = EPGeometry::EPGeometryGenerator::CreateSphere(mSphereSlices, mSphereStacks, mSphereRadius, sphereTestMesh);
+
+	if (sphereTestResult != S_OK)
+		_CrtDbgBreak();
+
+	mShapesVertexCountSphere = sphereTestMesh.Vertices.size();
+	mShapesIndexCountSphere = sphereTestMesh.Indices.size();
+
+	std::vector<HillsVertex> sphereTestVertices(mShapesVertexCountSphere);
+
+	//end shape test
 
 	mGridIndexCount = grid.Indices.size();
 	mGridVertexCount = grid.Vertices.size();
 
 	std::vector<HillsVertex> vertices(mGridVertexCount);
+
 
 	for (size_t i = 0; i < mGridVertexCount; i++)
 	{
@@ -267,6 +320,61 @@ void HillsDemo::BuildGeometryBuffers()
 		}
 	}
 
+	//do another pass for the sphere, change color slightly as height changes
+	FLOAT colorDelta = 1.0f /( mSphereStacks -2);
+
+	sphereTestVertices[0].Color = XMFLOAT4((float*)&Colors::Silver);
+	sphereTestVertices[0].Pos = sphereTestMesh.Vertices[0].Position;
+
+	sphereTestVertices[mShapesVertexCountSphere - 1].Color = XMFLOAT4((float*)&Colors::Silver);
+	sphereTestVertices[mShapesVertexCountSphere - 1].Pos = sphereTestMesh.Vertices[mShapesVertexCountSphere - 1].Position;
+
+	//ugh I have to do the iteration again ot color different layers
+	//need a more general color via height function
+	//I dont want to do it in geometry generator as that will be a more general class
+
+	for (UINT i = 0; i < mSphereStacks - 1; ++i)
+	{
+		FLOAT iterationColorDelta = (i + 1)*colorDelta;
+		XMVECTOR vRingColor = XMColorModulate(XMVectorReplicate(iterationColorDelta), Colors::White);
+
+		for (UINT j = 0; j < mSphereSlices + 1; ++j)
+		{
+
+			XMStoreFloat4(&sphereTestVertices[1 + i*(mSphereSlices + 1) + j].Color, vRingColor);
+			sphereTestVertices[1 + i*(mSphereSlices + 1) + j].Pos = sphereTestMesh.Vertices[1 + i*(mSphereSlices + 1) + j].Position;
+
+		}
+
+	}
+
+	//end sphere test
+
+
+	//Create sphere test vertex buffer
+	D3D11_BUFFER_DESC stbd;
+	stbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	stbd.ByteWidth = mShapesVertexCountSphere * sizeof(HillsVertex);
+	stbd.CPUAccessFlags = stbd.MiscFlags = stbd.StructureByteStride = 0;
+	stbd.Usage = D3D11_USAGE_IMMUTABLE;
+
+	D3D11_SUBRESOURCE_DATA stinitData;
+	stinitData.pSysMem = &sphereTestVertices[0];
+	stinitData.SysMemPitch = stinitData.SysMemSlicePitch = 0;
+
+	//sphere test index buffer
+	D3D11_BUFFER_DESC stid;
+	stid.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	stid.ByteWidth = mShapesIndexCountSphere * sizeof(UINT);
+	stid.CPUAccessFlags = stid.MiscFlags = stid.StructureByteStride = 0;
+	stid.Usage = D3D11_USAGE_IMMUTABLE;
+
+	D3D11_SUBRESOURCE_DATA stiinitData;
+	stiinitData.pSysMem = &sphereTestMesh.Indices[0];
+	stiinitData.SysMemPitch = stiinitData.SysMemSlicePitch = 0;
+
+	//end sphere test stuff
+
 	//Create our vertex buffers
 	D3D11_BUFFER_DESC vbd, ibd;
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -291,6 +399,17 @@ void HillsDemo::BuildGeometryBuffers()
 
 	//lock mgr
 	_dxMgr.LockMgr();
+
+	//sphere test start
+	
+	//create vertex buffer
+	HR(_dxMgr.CurrentDevice()->CreateBuffer(&stbd, &stinitData, &pShapesVertexBuffer));
+
+	//index buffer
+	HR(_dxMgr.CurrentDevice()->CreateBuffer(&stid, &stiinitData, &pShapesIndexBuffer));
+
+
+	//sphere test end
 
 	//create our vertex buffer
 	HR(_dxMgr.CurrentDevice()->CreateBuffer(&vbd, &vinitData, &pHillsVertexBuffer));

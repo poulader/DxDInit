@@ -365,7 +365,7 @@ HRESULT EPGeometryGenerator::CreateSphere(UINT slices, UINT stackCount, float ra
 	// a rectangular texture onto a sphere.
 
 	Vertex topVertex(0.0f, radius, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-	Vertex topVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
+	Vertex bottomVertex(0.0f, -radius, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f);
 
 	meshData.Vertices.push_back(topVertex);
 
@@ -384,7 +384,7 @@ HRESULT EPGeometryGenerator::CreateSphere(UINT slices, UINT stackCount, float ra
 		for (UINT j = 0; j <= slices; ++j)
 		{
 
-			float sliceTheta = i*thetaStep;
+			float sliceTheta = j*thetaStep;
 
 			Vertex vertex;
 
@@ -393,14 +393,124 @@ HRESULT EPGeometryGenerator::CreateSphere(UINT slices, UINT stackCount, float ra
 			vertex.Position.y = cosf(ringPhi)*radius;
 			vertex.Position.z = sinf(ringPhi)*radius*sinf(sliceTheta);
 
-			//TODO RESUME HERE
+			//partial derivative of position w/ respect to theta (P sub(theta), i.e. the vector representing the rate at which position is changing at our theta)
+			vertex.TangentU.x = sinf(ringPhi)*radius*-sinf(sliceTheta);
+			vertex.TangentU.y = 0;
+			vertex.TangentU.z = sinf(ringPhi)*radius*cosf(sliceTheta);
 
+			//use SIMD registers to compute unit tangent and store
+			XMVECTOR T = XMLoadFloat3(&vertex.TangentU);
+			XMStoreFloat3(&vertex.TangentU, XMVector3Normalize(T));
+
+			//use SIMD registers to compute unit normal (inherently the unit position vector in a sphere) and store
+			XMVECTOR N = XMLoadFloat3(&vertex.Position);
+			XMStoreFloat3(&vertex.Normal, XMVector3Normalize(N));
+
+			vertex.TexC.x = sliceTheta / XM_2PI;
+			vertex.TexC.y = ringPhi / XM_PI;
+
+			meshData.Vertices.push_back(vertex);
 
 		}
 
 
 	}
 
+	//push bottom pole
+	meshData.Vertices.push_back(bottomVertex);
 
+	//compute indices for top stack. The pole was pushed before everything else.
+
+	//so lets think... what will the indices look like
+	/*
+		
+		vertices ....   top pole      0
+						ring 1
+						ring ...
+						ring stackcount - 2
+						ring stackcount -1
+						bottom pole   vertices.size()-1
+
+		indices = stackcount
+	*/
+	UINT topPoleIndex = 0, bottomPoleIndex = meshData.Vertices.size() - 1;
+
+	//seems like the best way to do this is manually do the first and last stacks, loop for the middle stacks.
+	//I'm going to do it this way and then see how Luna did it. Better to ahve three separate loops instead of one giant loop with
+	//possible conditional branches in the body.
+
+	//first stack
+	//do the first ring indices, we can reach 1 beyond slices-1 because there are duplicate vertices at start and end
+	//not really sure where to start, there are three different points on each triangle we can start with to make clockwise winding order sets of vertices. Don't think it matters
+	//through, because texture coords, tangent, normal, binormal, are embedded in each vertex structure
+	UINT startRingBase = 1;
+
+	//TO FIX: I fucked up the winding order calculations both here and in cylinder
+
+	//yeh this is the same as Luna he just goes from i = 1 to i <= slices
+	for (UINT i = 0; i < slices; i++)
+	{
+		//push top pole index
+		meshData.Indices.push_back(topPoleIndex);
+		//push the vertex back which would be equiv to cos(thetastep * i) (note that we skip the final duplicate pos vertex)
+		meshData.Indices.push_back(startRingBase + i + 1);
+		//push the vertex back which would be equiv to cos(thetastep*i + 1) (which will include the final duplicate pos vertex)
+		meshData.Indices.push_back(startRingBase +i);
+	}
+
+
+	//all the other stacks - minus final stack which includes south pole
+	//so looking at the stacks, we need to start at the top ring of a slice, have access to the next stack index
+	//for the bottom ring of the slice. Basically (stackCount - 2) + 1 rings, starting at the offset into
+	//the first ring vertex indices. Starting at i = 0, which points to the first set of ring vertices in the vertex array, we will
+	//in the body of the loop, end up acessing (i*stackCount+1) to account for duplicate pos vertex of the next ring down to form the triangle.
+	//so if (stackCount -2) +1 rings, i starts at 0, goes through stackCount -2 so we will be able, in final pass, to reference stackCount -2 +1.
+
+	//yep same idea as luna, he just uses offset + scale * index
+	for (UINT i = 0; i < stackCount - 2; i++)
+	{
+
+		//index of the first vertex of the top ring of the slice (remember we have sliceCount +1 vertices per ring)
+		UINT startRingVertexIndex = startRingBase + i*(slices+1);
+
+		//index of the first vertex of the bottom ring of the slice
+		UINT stopRingVertexIndex = startRingVertexIndex + (slices + 1);
+
+		//each ring - again note the final duplicate vertex pos (with differing tangent & texture coords) is included in the vertices of the final triangle.
+		// A	B		*	B
+		// C	*		C	D   
+		//where B is the first point formed by the end of a ray between the pole and the cos(thetaStep*j) for the current ring
+		for (UINT j = 0; j < slices; j++)
+		{
+			//First triance, ABC
+			meshData.Indices.push_back(startRingVertexIndex + j );
+			meshData.Indices.push_back(startRingVertexIndex + j + 1);
+			meshData.Indices.push_back(stopRingVertexIndex + j);
+
+			//second triangle, CBD
+			meshData.Indices.push_back(stopRingVertexIndex + j);
+			meshData.Indices.push_back(startRingVertexIndex + j + 1);
+			meshData.Indices.push_back(stopRingVertexIndex + j + 1);
+		}
+
+	}
+
+
+	//OK, that should be it for the middle stacks
+	//now lets do the bottom stack
+
+	//same idea as luna, again he uses the var which equals slices +1
+
+	//first vertex of the ring forming the top of the last stack
+	UINT bottomStackTopRingStartIndex = bottomPoleIndex - (slices + 1);
+
+	for (UINT i = 0; i < slices; ++i)
+	{
+		meshData.Indices.push_back(bottomStackTopRingStartIndex + i);
+		meshData.Indices.push_back(bottomStackTopRingStartIndex + i + 1);
+		meshData.Indices.push_back(bottomPoleIndex);
+	}
+
+	return 0;
 
 }
