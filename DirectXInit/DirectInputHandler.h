@@ -113,6 +113,7 @@ namespace EPDirectInput
 
 		inline HRESULT CreateDirectInputInstance(HINSTANCE hWnd);
 
+
 		void		LogLastError(HRESULT code, const std::wstring& str);
 
 		//Handle to DirectInput 
