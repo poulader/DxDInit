@@ -62,6 +62,11 @@ private:
 	ID3D11Buffer *pHillsVertexBuffer;
 	ID3D11Buffer *pHillsIndexBuffer;
 
+	//Quick test for shapes, this will eventually contain all the shapes vertices and we will use offsets in drawindexed
+	ID3D11Buffer	*pShapesVertexBuffer;
+	//Quick test for shapes, this will eventually contain all the shapes indices and we will use offsets in drawindexed
+	ID3D11Buffer	*pShapesIndexBuffer;
+
 	//Handle to effects11 interface
 	ID3DX11Effect *pFX;
 	//handle to effects technique
@@ -76,6 +81,22 @@ private:
 	XMFLOAT4X4 mWorld;	//local space to world space matrix for our box vertices (wont change)
 	XMFLOAT4X4 mView;	//World space to view space matrix (will change as camera position and orientation changes)
 	XMFLOAT4X4 mProj;	//View space to homogenous clip space matrix (may change if aspect ratio of window changes)
+
+	//shapes test
+
+	//we just need one more for a quick shapes test
+	XMFLOAT4X4 mWorldSphere;
+
+	//and some index and vertex counts for our sphere (in full shapes demo we will probably need arrays of these)
+	UINT mShapesIndexCountSphere;
+	UINT mShapesVertexCountSphere;
+
+	UINT mSphereStacks, mSphereSlices;
+
+	FLOAT mSphereRadius;
+
+	//end shapes test
+
 
 	UINT mGridIndexCount;
 	UINT mGridVertexCount;
