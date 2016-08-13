@@ -12,7 +12,7 @@
 
 //define our vertex structure
 
-typedef struct HillsVertex
+typedef struct ShapesVertex
 {
 	//position
 	XMFLOAT3 Pos;
@@ -20,16 +20,16 @@ typedef struct HillsVertex
 	//color
 	XMFLOAT4 Color;
 
-} HillsVertex, *pHillsVertex;
+} ShapesVertex, *pShapesVertex;
 
 
 //subclass our base dx framework
-class HillsDemo : public DxAppBase
+class ShapesDemo : public DxAppBase
 {
 public:
 
-	HillsDemo(HINSTANCE hWnd);
-	virtual ~HillsDemo();
+	ShapesDemo(HINSTANCE hWnd);
+	virtual ~ShapesDemo();
 
 	//virtual methods to implement
 	virtual bool InitApp();
@@ -59,8 +59,6 @@ private:
 private:
 
 	//Internal class fields
-	ID3D11Buffer *pHillsVertexBuffer;
-	ID3D11Buffer *pHillsIndexBuffer;
 
 	//Quick test for shapes, this will eventually contain all the shapes vertices and we will use offsets in drawindexed
 	ID3D11Buffer	*pShapesVertexBuffer;
@@ -96,10 +94,6 @@ private:
 	FLOAT mSphereRadius;
 
 	//end shapes test
-
-
-	UINT mGridIndexCount;
-	UINT mGridVertexCount;
 
 
 						//spherical coordinates for camera

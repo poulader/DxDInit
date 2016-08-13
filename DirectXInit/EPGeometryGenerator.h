@@ -58,11 +58,17 @@ namespace EPGeometry
 
 		static HRESULT CreateSphere(UINT slices, UINT stackCount, float radius, MeshData& meshData);
 
+		//I don't like the way Luna does this, he specifies static vertices so you dont see how to generate an icosahedron.
+		//So I'll make my own!
+
+		static HRESULT CreateIcosahedron(MeshData& mesh);
+		static HRESULT CreateIcosahedron(FLOAT radius, MeshData& mesh);
+		static HRESULT CreateGeosphere(float radius, UINT nSubdivisions, MeshData& meshData);
+
 	private:
 
 		static HRESULT BuildCylinderTopCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
 		static HRESULT BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
-
 
 
 

@@ -9,19 +9,17 @@
 #include <tchar.h>
 #include "d3dx11effect.h"
 #include <xnamath.h>
-#include "HillsDemo.h"
+#include "ShapesDemo.h"
 #include <iostream>
 #include "EPGeometryGenerator.h"
 #include "DirectInputHandler.h"
 
 using namespace EPDirectInput;
 
-HillsDemo::HillsDemo(HINSTANCE hWnd)
-	: DxAppBase(hWnd), pHillsVertexBuffer(NULL), pHillsIndexBuffer(NULL), pFX(NULL), pTech(NULL),
-	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.25f * MathHelper::Pi), mRadius(5.0f), mGridIndexCount(0), mGridVertexCount(0)
-
-	//quick shapes test as I want to sleep
-	,mShapesIndexCountSphere(0), mShapesVertexCountSphere(0), pShapesIndexBuffer(NULL), pShapesVertexBuffer(NULL), mSphereStacks(8), mSphereSlices(8), mSphereRadius(2)
+ShapesDemo::ShapesDemo(HINSTANCE hWnd)
+	: DxAppBase(hWnd), pShapesVertexBuffer(NULL), pShapesIndexBuffer(NULL), pFX(NULL), pTech(NULL),
+	pfxWorldViewProj(NULL), pInputLayout(NULL), mTheta(1.5f * MathHelper::Pi), mPhi(0.5f * MathHelper::Pi), mRadius(5.0f)
+	,mShapesIndexCountSphere(0), mShapesVertexCountSphere(0), mSphereStacks(8), mSphereSlices(8), mSphereRadius(0.2f)
 
 {
 
@@ -29,7 +27,7 @@ HillsDemo::HillsDemo(HINSTANCE hWnd)
 	//mgr.OpenInputMgr();
 	//mgr.OpenInputDeviceOfType(EP_INPUT_KBD);
 
-	strMainWindowCaption = _T("Hills Demo");
+	strMainWindowCaption = _T("Shapes Demo");
 
 	mLastMousePos.x = mLastMousePos.y = 0;
 
@@ -44,22 +42,17 @@ HillsDemo::HillsDemo(HINSTANCE hWnd)
 	mWorldSphere = XMFLOAT4X4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,10,0,1);
 }
 
-HillsDemo::~HillsDemo()
+ShapesDemo::~ShapesDemo()
 {
-	ReleaseCOM(pHillsVertexBuffer);
-	ReleaseCOM(pHillsIndexBuffer);
-
-	//start shapes test
 	ReleaseCOM(pShapesVertexBuffer);
 	ReleaseCOM(pShapesIndexBuffer);
-	//end shapes test
 
 	ReleaseCOM(pFX);
 	ReleaseCOM(pInputLayout);
 }
 
 
-bool HillsDemo::InitApp()
+bool ShapesDemo::InitApp()
 {
 
 	if (!DxAppBase::InitApp())
@@ -76,7 +69,7 @@ bool HillsDemo::InitApp()
 }
 
 
-bool HillsDemo::OnResizeHandler()
+bool ShapesDemo::OnResizeHandler()
 {
 
 	DxAppBase::OnResizeHandler();
@@ -88,7 +81,7 @@ bool HillsDemo::OnResizeHandler()
 	return true;
 }
 
-void HillsDemo::ProcSceneUpdate(float dt)
+void ShapesDemo::ProcSceneUpdate(float dt)
 {
 
 	//Convert spherical coords to radial
@@ -108,7 +101,7 @@ void HillsDemo::ProcSceneUpdate(float dt)
 
 
 
-void HillsDemo::ProcSceneDraw()
+void ShapesDemo::ProcSceneDraw()
 {
 
 	//lock manager
@@ -130,14 +123,14 @@ void HillsDemo::ProcSceneDraw()
 	//set topology
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	UINT stride = sizeof(HillsVertex);
+	UINT stride = sizeof(ShapesVertex);
 	UINT offset = 0;
 
 	//set vertex buffer
-	pContext->IASetVertexBuffers(0, 1, &pHillsVertexBuffer, &stride, &offset);
+	pContext->IASetVertexBuffers(0, 1, &pShapesVertexBuffer, &stride, &offset);
 
 	//set index buffer
-	pContext->IASetIndexBuffer(pHillsIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	pContext->IASetIndexBuffer(pShapesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 
 	//set constants
@@ -154,18 +147,6 @@ void HillsDemo::ProcSceneDraw()
 	D3DX11_TECHNIQUE_DESC techDesc;
 	pTech->GetDesc(&techDesc);
 
-	for (UINT p = 0; p < techDesc.Passes; ++p)
-	{
-
-		//get pass by index... update constant buffer in video memory, bind shaders to pipeline
-		pTech->GetPassByIndex(p)->Apply(0, pContext);
-
-		//Draw the 36 indicies into the vertex buffer to the back buffer
-		pContext->DrawIndexed(mGridIndexCount, 0, 0);
-
-	}
-
-
 	//draw our sphere, we can use the same input layout, same technique, same constant buffer (but update with sphere world matrix), but need to change vertex/index buffers
 	pContext->IASetVertexBuffers(0, 1, &pShapesVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(pShapesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -178,18 +159,53 @@ void HillsDemo::ProcSceneDraw()
 	//view and proj same
 	sphereWVP = sW * view * proj;
 
-	//update our local copy ofconstant buffer
-	pfxWorldViewProj->SetMatrix(reinterpret_cast<float*>(&sphereWVP));
+	////update our local copy ofconstant buffer
+	//pfxWorldViewProj->SetMatrix(reinterpret_cast<float*>(&sphereWVP));
 
-	for (UINT p = 0; p < techDesc.Passes; ++p)
+	//for (UINT p = 0; p < techDesc.Passes; ++p)
+	//{
+	//	pTech->GetPassByIndex(p)->Apply(0, pContext);
+
+	//	//draw our indices
+	//	pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
+	//}
+
+	//ok i want to draw the vertices of an icosahedron so i cn tell the best way to generate it
+
+	float X = 0.525731f;
+	float Z = 0.850651f;
+
+	XMFLOAT4X4 icoWorldTranslates[12];
+
+	//lets just translate 12 spheres to the way luna lays out vertices for the icosahedron
+	XMStoreFloat4x4(&icoWorldTranslates[0], XMMatrixTranslation(-X, 0.0f, Z));
+	XMStoreFloat4x4(&icoWorldTranslates[1], XMMatrixTranslation(X, 0.0f, Z));
+	XMStoreFloat4x4(&icoWorldTranslates[2], XMMatrixTranslation(-X, 0.0f, -Z));
+	XMStoreFloat4x4(&icoWorldTranslates[3], XMMatrixTranslation(X, 0.0f, -Z));
+
+	XMStoreFloat4x4(&icoWorldTranslates[4], XMMatrixTranslation(0.0f, Z, X));
+	XMStoreFloat4x4(&icoWorldTranslates[5], XMMatrixTranslation(0.0f, Z, -X));
+	XMStoreFloat4x4(&icoWorldTranslates[6], XMMatrixTranslation(0.0f, -Z, X));
+	XMStoreFloat4x4(&icoWorldTranslates[7], XMMatrixTranslation(0.0f, -Z, -X));
+
+	XMStoreFloat4x4(&icoWorldTranslates[8], XMMatrixTranslation(Z, X, 0.0f));
+	XMStoreFloat4x4(&icoWorldTranslates[9], XMMatrixTranslation(-Z, X, 0.0f));
+	XMStoreFloat4x4(&icoWorldTranslates[10], XMMatrixTranslation(Z, -X, 0.0f));
+	XMStoreFloat4x4(&icoWorldTranslates[11], XMMatrixTranslation(-Z, -X, 0.0f));
+
+	for (UINT i = 0; i < 12; ++i)
 	{
-		pTech->GetPassByIndex(p)->Apply(0, pContext);
+		for (UINT p = 0; p < techDesc.Passes; ++p)
+		{
+			sphereWVP = XMLoadFloat4x4(&icoWorldTranslates[i]) * view * proj;
 
-		//draw our indices
-		pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
+			pfxWorldViewProj->SetMatrix((float*)&sphereWVP);
+
+			pTech->GetPassByIndex(p)->Apply(0, pContext);
+
+			pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
+		}
 	}
-
-
 
 	//flip the back buffer and... front buffer?
 	HR(_dxMgr.CurrentSwapChain()->Present(0, 0));
@@ -200,7 +216,7 @@ void HillsDemo::ProcSceneDraw()
 }
 
 
-void HillsDemo::HandleMouseDown(WPARAM bState, int x, int y)
+void ShapesDemo::HandleMouseDown(WPARAM bState, int x, int y)
 {
 
 	mLastMousePos.x = x;
@@ -209,13 +225,13 @@ void HillsDemo::HandleMouseDown(WPARAM bState, int x, int y)
 	SetCapture(this->handleMainWindow);
 }
 
-void HillsDemo::HandleMouseUp(WPARAM bState, int x, int y)
+void ShapesDemo::HandleMouseUp(WPARAM bState, int x, int y)
 {
 	ReleaseCapture();
 }
 
 
-void HillsDemo::HandleMouseMove(WPARAM bState, int x, int y)
+void ShapesDemo::HandleMouseMove(WPARAM bState, int x, int y)
 {
 
 	if ((bState & MK_LBUTTON) != 0)
@@ -251,17 +267,15 @@ void HillsDemo::HandleMouseMove(WPARAM bState, int x, int y)
 
 }
 
-float HillsDemo::GetHeight(float x, float z) const
+float ShapesDemo::GetHeight(float x, float z) const
 {
 	return 0.3f*(z*sinf(0.1f*x) + x*cosf(0.1f*z));
 }
 
-void HillsDemo::BuildGeometryBuffers()
+void ShapesDemo::BuildGeometryBuffers()
 {
 
-	EPGeometry::EPGeometryGenerator::MeshData grid, sphereTestMesh;
-
-	HRESULT gridResult = EPGeometry::EPGeometryGenerator::CreateGrid(160.0f, 160.0f, 50, 50, grid);
+	EPGeometry::EPGeometryGenerator::MeshData sphereTestMesh;
 
 	//quick shapes test
 	HRESULT sphereTestResult = EPGeometry::EPGeometryGenerator::CreateSphere(mSphereSlices, mSphereStacks, mSphereRadius, sphereTestMesh);
@@ -272,53 +286,9 @@ void HillsDemo::BuildGeometryBuffers()
 	mShapesVertexCountSphere = sphereTestMesh.Vertices.size();
 	mShapesIndexCountSphere = sphereTestMesh.Indices.size();
 
-	std::vector<HillsVertex> sphereTestVertices(mShapesVertexCountSphere);
+	std::vector<ShapesVertex> sphereTestVertices(mShapesVertexCountSphere);
 
 	//end shape test
-
-	mGridIndexCount = grid.Indices.size();
-	mGridVertexCount = grid.Vertices.size();
-
-	std::vector<HillsVertex> vertices(mGridVertexCount);
-
-
-	for (size_t i = 0; i < mGridVertexCount; i++)
-	{
-
-		XMFLOAT3 p = grid.Vertices[i].Position;
-
-		p.y = GetHeight(p.x, p.z);
-
-		vertices[i].Pos = p;
-
-		//color vertex based on height
-		if (p.y < -10.f)
-		{
-			//sandy beach
-			vertices[i].Color = XMFLOAT4(10.f, 0.96f, 0.62f, 1.0f);
-		}
-		else if (p.y < 0.5f)
-		{
-			//light yellow-green
-			vertices[i].Color = XMFLOAT4(0.48f, 0.77f, 0.46f, 1.0f);
-		}
-		else if (p.y < 12.0f)
-		{
-			//dark yellow-green
-			vertices[i].Color = XMFLOAT4(0.1f, 0.48f, 0.19f, 1.0f);
-		}
-		else if (p.y < 20.f)
-		{
-			//dark brown
-			vertices[i].Color = XMFLOAT4(0.45f, 0.39f, 0.34f, 1.0f);
-		}
-		else
-		{
-			//white snow
-			vertices[i].Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-		}
-	}
 
 	//do another pass for the sphere, change color slightly as height changes
 	FLOAT colorDelta = 1.0f /( mSphereStacks -2);
@@ -354,7 +324,7 @@ void HillsDemo::BuildGeometryBuffers()
 	//Create sphere test vertex buffer
 	D3D11_BUFFER_DESC stbd;
 	stbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	stbd.ByteWidth = mShapesVertexCountSphere * sizeof(HillsVertex);
+	stbd.ByteWidth = mShapesVertexCountSphere * sizeof(ShapesVertex);
 	stbd.CPUAccessFlags = stbd.MiscFlags = stbd.StructureByteStride = 0;
 	stbd.Usage = D3D11_USAGE_IMMUTABLE;
 
@@ -375,28 +345,6 @@ void HillsDemo::BuildGeometryBuffers()
 
 	//end sphere test stuff
 
-	//Create our vertex buffers
-	D3D11_BUFFER_DESC vbd, ibd;
-	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.ByteWidth = mGridVertexCount * sizeof(HillsVertex);
-	vbd.CPUAccessFlags = vbd.MiscFlags = vbd.StructureByteStride = 0;
-	vbd.Usage = D3D11_USAGE_IMMUTABLE;
-	
-	D3D11_SUBRESOURCE_DATA vinitData, iinitData;
-	vinitData.SysMemPitch = vinitData.SysMemSlicePitch = 0;
-	vinitData.pSysMem = &vertices[0];
-
-	//Create our index buffer
-	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.Usage = D3D11_USAGE_IMMUTABLE;
-	ibd.CPUAccessFlags = ibd.MiscFlags = ibd.StructureByteStride = 0;
-	ibd.ByteWidth = mGridIndexCount * sizeof(UINT);
-
-	iinitData.SysMemPitch = iinitData.SysMemSlicePitch = 0;
-
-	//We don't need to change our indices, we can use them directly from grid
-	iinitData.pSysMem = &grid.Indices[0];
-
 	//lock mgr
 	_dxMgr.LockMgr();
 
@@ -411,17 +359,11 @@ void HillsDemo::BuildGeometryBuffers()
 
 	//sphere test end
 
-	//create our vertex buffer
-	HR(_dxMgr.CurrentDevice()->CreateBuffer(&vbd, &vinitData, &pHillsVertexBuffer));
-
-	//Create our index buffer
-	HR(_dxMgr.CurrentDevice()->CreateBuffer(&ibd, &iinitData, &pHillsIndexBuffer));
-
 	//unlock mgr
 	_dxMgr.UnlockMgr();
 }
 
-void HillsDemo::BuildFX()
+void ShapesDemo::BuildFX()
 {
 	std::string targetFile;
 #ifdef _DEBUG
@@ -459,7 +401,7 @@ void HillsDemo::BuildFX()
 
 }
 
-void HillsDemo::BuildVertexLayout()
+void ShapesDemo::BuildVertexLayout()
 {
 
 	//create vertex input layout
@@ -494,7 +436,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 
 #endif
 
-	HillsDemo theApp(hInstance);
+	ShapesDemo theApp(hInstance);
 
 	if (!theApp.InitApp())
 	{

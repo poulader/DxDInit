@@ -514,3 +514,22 @@ HRESULT EPGeometryGenerator::CreateSphere(UINT slices, UINT stackCount, float ra
 	return 0;
 
 }
+
+HRESULT EPGeometryGenerator::CreateIcosahedron(MeshData& mesh)
+{
+	return CreateIcosahedron(1.0f, mesh);
+}
+
+HRESULT EPGeometryGenerator::CreateIcosahedron(FLOAT radius, MeshData& mesh)
+{
+
+	//ok lets see, there are twelve vertices
+
+	return 0;
+}
+
+HRESULT EPGeometryGenerator::CreateGeosphere(float radius, UINT nSubdivisions, MeshData& meshData)
+{
+
+	return 0;
+}
