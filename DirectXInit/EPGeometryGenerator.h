@@ -60,16 +60,22 @@ namespace EPGeometry
 
 		//I don't like the way Luna does this, he specifies static vertices so you dont see how to generate an icosahedron.
 		//So I'll make my own!
+		//edit: turns out there are some special things about generating an icosahedron... geometrically it can be represented by
+		//three orthoganol golden rectangles
+
+		//golden ratio
+		//ugh msvc compiler sucks... I should be able to specify a value here according to latest C++ standards
+		static const float GOLDEN_RATIO;
 
 		static HRESULT CreateIcosahedron(MeshData& mesh);
-		static HRESULT CreateIcosahedron(FLOAT radius, MeshData& mesh);
+		static HRESULT CreateIcosahedron(FLOAT scale, MeshData& mesh);
 		static HRESULT CreateGeosphere(float radius, UINT nSubdivisions, MeshData& meshData);
 
 	private:
 
 		static HRESULT BuildCylinderTopCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
 		static HRESULT BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, UINT sliceCount, MeshData& meshData);
-
+		static HRESULT Subdivide(MeshData& meshData);
 
 
 	};

@@ -4,8 +4,11 @@
 #include <d3d11.h>
 #include <xnamath.h>
 #include "MathHelper.h"
+#include <assert.h>
 
 using namespace EPGeometry;
+
+const float EPGeometryGenerator::GOLDEN_RATIO = 1.61803;
 
 //TODO: Add overload allowing axis to be specified
 //width = width in cells along x axis, depth = depth in cells along z axis
@@ -515,21 +518,270 @@ HRESULT EPGeometryGenerator::CreateSphere(UINT slices, UINT stackCount, float ra
 
 }
 
+
+//instead of using the constant vertices luna provided, which works as you can simply scale them in the world transform,
+//I did some research into generating icosahedrons and ended up in cyclic permutation land...
 HRESULT EPGeometryGenerator::CreateIcosahedron(MeshData& mesh)
 {
-	return CreateIcosahedron(1.0f, mesh);
+	//scale luna uses
+	return CreateIcosahedron(0.525731f, mesh);
 }
 
-HRESULT EPGeometryGenerator::CreateIcosahedron(FLOAT radius, MeshData& mesh)
+HRESULT EPGeometryGenerator::CreateIcosahedron(FLOAT scale, MeshData& mesh)
 {
 
-	//ok lets see, there are twelve vertices
+	if (scale < 0)
+		scale = fabsf(scale);
+
+	//we can do this by generating all the permutations of (0, +- 1, +-golden ratio)
+	//which form the vertices of 3 orthogonal concentric golden rectangles
+	//but we need to jigger in case of scale, so its (0, +- B, +- A)
+
+	// (a+b)/a, a/b, lz = a, lx  b 
+	const float A = scale;
+	const float B = (1.0f / GOLDEN_RATIO) * A;
+
+	mesh.Vertices.clear();
+	mesh.Indices.clear();
+
+	mesh.Vertices.resize(12);
+	mesh.Indices.resize(60);
+
+	//I have no idea why he didn't list the vertices in a more uniform way,
+	//but as I have not got to the stuff using the normals, tangents, and bitangents yet, as well as texture coords,
+	//I'm not going to change it
+
+	XMFLOAT3 pos[12] = 
+	{
+		//first rectnagle
+		XMFLOAT3(-B, 0.0f,	A),
+		XMFLOAT3( B, 0.0f,	A),
+		XMFLOAT3(-B, 0.0f, -A),
+		XMFLOAT3( B, 0.0f, -A),
+
+		//second rectangle
+		XMFLOAT3(0.0f, A, B),
+		XMFLOAT3(0.0f, A, -B),
+		XMFLOAT3(0.0f, -A, B),
+		XMFLOAT3(0.0f, -A, -B),
+
+		//third rectangle
+		XMFLOAT3(A, B, 0.0f),
+		XMFLOAT3(-A, B, 0.0f),
+		XMFLOAT3(A, -B, 0.0f),
+		XMFLOAT3(-A, -B, 0.0f)
+	};
+
+	//20 faces, 3 indices per face
+	DWORD	 indices[60]
+	{
+		1,4,0,
+		4,9,0,
+		4,5,9,
+		8,5,4, 
+		1,8,4, 
+		1,10,8, 
+		10,3,8, 
+		8,3,5, 
+		3,2,5, 
+		3,7,2, 
+		3,10,7, 
+		10,6,7, 
+		6,11,7, 
+		6,0,11, 
+		6,1,0, 
+		10,1,6, 
+		11,0,9, 
+		2,11,9, 
+		5,2,9, 
+		11,2,7
+	};
+
+	//copy over to our mesh
+	for (size_t i = 0; i < 12; ++i)
+		mesh.Vertices[i].Position = pos[i];
+
+	for (size_t i = 0; i < 60; ++i)
+		mesh.Indices[i] = indices[i];
+
+	//how exactly do we get the partial derivative of a set of cyclic permutations?
+
+	//hm maybe for now figure out a parametric way to map the vertices to a function of polar coordinates, go with that.
+	//Once we get the tangent line we can get the unit normal and then we can get the bitangent. I think I saw some summation notation on wolfram somewhere,
+	//where there is summation notation, there might be a series.
+
+	//ok basically I need to take abstract algebra, group theory, and number theory before I can do anything
+
+	//for the meanwhile, I can fudge it by just assigning normals across each face by the cross product of two of the edges,
+	//tangents by assuming a direction of rotation in the xz plane and fudging per vertex, and binormal =  T X N I think.
+
+	//for texture coords, not really sure as I haven't gotten to the texture chapter yet
+
+	//HOWEVER, since this is mostly being used to create a geosphere, perhaps overload this function with another one to add that stuff
+
+	//TODO
 
 	return 0;
 }
 
 HRESULT EPGeometryGenerator::CreateGeosphere(float radius, UINT nSubdivisions, MeshData& meshData)
 {
+
+	//ok for now just create the icosahedron using the vertices luna provided, I got cocky, the math needed to create any sort of model for generating an icosahedron w/ respect to some variables
+	//is a year beyond me right now.
+
+	nSubdivisions = MathHelper::Min(nSubdivisions, 5u);
+
+	//approximate a sphere by tessellating an icosahedron
+
+	CreateIcosahedron(meshData);
+
+	for (size_t i = 0; i < nSubdivisions; ++i)
+		Subdivide(meshData);
+
+	//project vertices onto sphere and scale
+	UINT nVertices = meshData.Vertices.size();
+
+	float theta = 0, phi = 0;
+
+	XMFLOAT3 yAxisF3(0.0f, 1.0f, 0.0f);
+
+	//we will need to get our spherical coords for purposes of tangent, normal, binormal, through inverse trig function per each vertex
+
+	//remember, in spherical, x = sin(phi) * radius * cos(theta), y = cos(phi) * radius, z = sin(phi) * radius * sin(theta)
+
+	for (UINT i = 0; i < nVertices; ++i)
+	{
+		
+		//you can project each vertex onto a sphere by simply making its magnitude = radius
+		//so in maths, I would get a unit vector (XMVectorNormalize) and then multiply it by radius
+
+		XMVECTOR nVertex = XMVector3Normalize(XMLoadFloat3(&meshData.Vertices[i].Position));
+		nVertex *= radius;
+
+		//lets get phi
+
+		XMVECTOR nDotYVector = XMVector3Dot(XMLoadFloat3(&yAxisF3), nVertex);
+
+		float nDotY = XMVectorGetX(nDotYVector);
+
+		//because we did the inner product with two unit vectors, we don't have to divide by magnitudes
+		phi = acosf(nDotY);
+
+		//todo continue
+
+	}
+
+	return 0;
+}
+
+HRESULT EPGeometryGenerator::Subdivide(MeshData& meshData)
+{
+
+	//assumptions going into this function:
+
+	/*
+	1. We have a set of vertices and a set of indices defining triangles out of said vertices
+	2. We need to return a new list of vertices and indices, 2x original number of vertices, 4x original number of indices
+	3. We have been passed a correct set of vertices and indices, maybe switch to iterators and add extra check later for safety (although this is private function performing an implementation task)
+	*/
+
+	if (meshData.Vertices.size() < 3)
+		return -1;
+	else if (meshData.Indices.size() < 3)
+		return -2;
+
+	std::vector<XMFLOAT3> nVertexList(meshData.Vertices.size() * 2);
+	std::vector<UINT>	  nIndexList(meshData.Indices.size() * 4);
+
+	UINT nOrigTriangles = meshData.Indices.size() / 3;
+
+	XMFLOAT3 p0, p1, p2, m0, m1, m2;
+
+	UINT nVerticesPerStep = 6;
+
+	for (UINT i = 0; i < nOrigTriangles; ++i)
+	{
+		//original vertices of triangle
+		p0 = meshData.Vertices[meshData.Indices[i*nOrigTriangles]].Position;
+		p1 = meshData.Vertices[meshData.Indices[i*nOrigTriangles +1]].Position;
+		p2 = meshData.Vertices[meshData.Indices[i*nOrigTriangles + 2]].Position;
+
+		//get edges
+		XMVECTOR p0p1 = XMVectorSubtract(XMLoadFloat3(&p1), XMLoadFloat3(&p0));
+		XMVECTOR p1p2 = XMVectorSubtract(XMLoadFloat3(&p2), XMLoadFloat3(&p1));
+		XMVECTOR p2p0 = XMVectorSubtract(XMLoadFloat3(&p0), XMLoadFloat3(&p2));
+
+		//get midpoints
+		XMStoreFloat3(&m0, p0p1*0.5f);
+		XMStoreFloat3(&m1, p1p2*0.5f);
+		XMStoreFloat3(&m2, p2p0*0.5f);
+
+		//store new vertices
+
+		/*
+		
+				p1
+		
+			m0		m1
+		
+		p0		m2		p2
+
+		
+		*/
+
+		nVertexList.push_back(p0);
+		nVertexList.push_back(m2);
+		nVertexList.push_back(p2);
+
+		nVertexList.push_back(m0);
+		nVertexList.push_back(m1);
+
+		nVertexList.push_back(p1);
+
+		//indices - we aren't modifying the original vertex list until we are done, so we don't need to worry about
+		//a mapping change per loop. We can use our own mapping then replace the vertex/index lists with our new ones.
+
+		//our p0 index for this iteration
+		UINT iBase = i*nVerticesPerStep;
+
+		nIndexList.push_back(iBase + 0);
+		nIndexList.push_back(iBase + 3);
+		nIndexList.push_back(iBase + 1);
+
+		nIndexList.push_back(iBase + 1);
+		nIndexList.push_back(iBase + 3);
+		nIndexList.push_back(iBase + 4);
+
+		nIndexList.push_back(iBase + 1);
+		nIndexList.push_back(iBase + 4);
+		nIndexList.push_back(iBase + 2);
+
+		nIndexList.push_back(iBase + 3);
+		nIndexList.push_back(iBase + 5);
+		nIndexList.push_back(iBase + 4);
+	}
+
+	//that was much easier than I thought it would be
+	meshData.Vertices.clear();
+	meshData.Vertices.resize(nVertexList.size());
+
+	UINT nVertexListCount = meshData.Vertices.size();
+
+	for (UINT i = 0; i < nVertexListCount; ++i)
+	{
+		meshData.Vertices[i].Position = nVertexList[i];
+	}
+
+	meshData.Indices.clear();
+	meshData.Indices.resize(nIndexList.size());
+
+	UINT nIndexListCount = nIndexList.size();
+
+	for (UINT i = 0; i < nIndexListCount; ++i)
+	{
+		meshData.Indices[i] = nIndexList[i];
+	}
 
 	return 0;
 }

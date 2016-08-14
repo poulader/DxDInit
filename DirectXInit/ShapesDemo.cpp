@@ -193,6 +193,10 @@ void ShapesDemo::ProcSceneDraw()
 	XMStoreFloat4x4(&icoWorldTranslates[10], XMMatrixTranslation(Z, -X, 0.0f));
 	XMStoreFloat4x4(&icoWorldTranslates[11], XMMatrixTranslation(-Z, -X, 0.0f));
 
+	EPGeometry::EPGeometryGenerator::MeshData sphereTestMesh;
+	//quick test
+	EPGeometry::EPGeometryGenerator::CreateIcosahedron(3, sphereTestMesh);
+
 	for (UINT i = 0; i < 12; ++i)
 	{
 		for (UINT p = 0; p < techDesc.Passes; ++p)
