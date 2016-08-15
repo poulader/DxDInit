@@ -5,8 +5,10 @@
 #include <xnamath.h>
 #include "MathHelper.h"
 #include <assert.h>
+#include "EPMathHelper.h"
 
 using namespace EPGeometry;
+using namespace EPMathHelperFunctions;
 
 const float EPGeometryGenerator::GOLDEN_RATIO = 1.61803;
 
@@ -573,7 +575,7 @@ HRESULT EPGeometryGenerator::CreateIcosahedron(FLOAT scale, MeshData& mesh)
 	};
 
 	//20 faces, 3 indices per face
-	DWORD	 indices[60]
+	DWORD	 indices[60] =
 	{
 		1,4,0,
 		4,9,0,
@@ -657,18 +659,35 @@ HRESULT EPGeometryGenerator::CreateGeosphere(float radius, UINT nSubdivisions, M
 		//so in maths, I would get a unit vector (XMVectorNormalize) and then multiply it by radius
 
 		XMVECTOR nVertex = XMVector3Normalize(XMLoadFloat3(&meshData.Vertices[i].Position));
-		nVertex *= radius;
 
-		//lets get phi
+		//project our vertex onto our sphere of given radius
+		XMVECTOR pVertex = nVertex*radius;
 
-		XMVECTOR nDotYVector = XMVector3Dot(XMLoadFloat3(&yAxisF3), nVertex);
+		XMStoreFloat3(&meshData.Vertices[i].Position, pVertex);
 
-		float nDotY = XMVectorGetX(nDotYVector);
+		XMStoreFloat3(&meshData.Vertices[i].Normal, nVertex);
+
+		//lets get phi, if we did the dot product between unit normal and (0, 1, 0) it would just return the y component of pVertex / radius
 
 		//because we did the inner product with two unit vectors, we don't have to divide by magnitudes
-		phi = acosf(nDotY);
+		phi = acosf(meshData.Vertices[i].Normal.y);
 
-		//todo continue
+		//we dont have to do anything else with phi b/c range of inverse cosine matches up with our phi range
+
+		//theta on the other hand we will have to do some trickery with
+
+		//get our theta (note: the code looks the same as Luna's but we actually did the same thing)
+		theta = EPMathHelper::CyclThetaAngleInPlaneFrom(meshData.Vertices[i].Position.x, meshData.Vertices[i].Position.z);
+
+		//partial deriv of cyl coords w/ respect to theta
+		XMFLOAT3 tangent = XMFLOAT3(-sinf(theta)*radius*sinf(phi), 0.0f, cosf(theta)*sinf(phi)*radius);
+
+		XMStoreFloat3(&meshData.Vertices[i].TangentU, XMVector3Normalize(XMLoadFloat3(&tangent)));
+
+		meshData.Vertices[i].TexC.x = theta / XM_2PI;
+		meshData.Vertices[i].TexC.y = phi / XM_PI;
+
+		//and I think that is it...
 
 	}
 
@@ -691,8 +710,9 @@ HRESULT EPGeometryGenerator::Subdivide(MeshData& meshData)
 	else if (meshData.Indices.size() < 3)
 		return -2;
 
-	std::vector<XMFLOAT3> nVertexList(meshData.Vertices.size() * 2);
-	std::vector<UINT>	  nIndexList(meshData.Indices.size() * 4);
+	std::vector<XMFLOAT3> nVertexList;
+	std::vector<UINT>	  nIndexList;
+
 
 	UINT nOrigTriangles = meshData.Indices.size() / 3;
 
@@ -703,32 +723,35 @@ HRESULT EPGeometryGenerator::Subdivide(MeshData& meshData)
 	for (UINT i = 0; i < nOrigTriangles; ++i)
 	{
 		//original vertices of triangle
-		p0 = meshData.Vertices[meshData.Indices[i*nOrigTriangles]].Position;
-		p1 = meshData.Vertices[meshData.Indices[i*nOrigTriangles +1]].Position;
-		p2 = meshData.Vertices[meshData.Indices[i*nOrigTriangles + 2]].Position;
-
-		//get edges
-		XMVECTOR p0p1 = XMVectorSubtract(XMLoadFloat3(&p1), XMLoadFloat3(&p0));
-		XMVECTOR p1p2 = XMVectorSubtract(XMLoadFloat3(&p2), XMLoadFloat3(&p1));
-		XMVECTOR p2p0 = XMVectorSubtract(XMLoadFloat3(&p0), XMLoadFloat3(&p2));
-
-		//get midpoints
-		XMStoreFloat3(&m0, p0p1*0.5f);
-		XMStoreFloat3(&m1, p1p2*0.5f);
-		XMStoreFloat3(&m2, p2p0*0.5f);
-
-		//store new vertices
+		p0 = meshData.Vertices[meshData.Indices[i*3]].Position;
+		p1 = meshData.Vertices[meshData.Indices[i*3 +1]].Position;
+		p2 = meshData.Vertices[meshData.Indices[i*3 + 2]].Position;
 
 		/*
-		
+
 				p1
-		
+
 			m0		m1
-		
+
 		p0		m2		p2
 
-		
+
 		*/
+
+
+		//we are working with points. If we subtract these points, we will get vectors which we will treat as centered at the origin.
+		//we cannot simply subtract the vertices to get the edges, because then we will have the components, true, but not their positions.
+		//So we subtract the vectors, reduce magnitude by 1/2, and add back to second operand of subtraction.
+
+		//EDIT: the way luna does it is much more efficient than what I was doing, just copy him. For each component, the midpoint is the average between the two components.
+
+		m0 = XMFLOAT3(0.5f*(p0.x + p1.x), 0.5f*(p0.y + p1.y), 0.5f*(p0.z + p1.z));
+		m1 = XMFLOAT3(0.5f*(p1.x + p2.x), 0.5f*(p1.y + p2.y), 0.5f*(p1.z + p2.z));
+		m2 = XMFLOAT3(0.5f*(p2.x + p0.x), 0.5f*(p2.y + p0.y), 0.5f*(p2.z + p0.z));
+
+		
+
+		//store new vertices
 
 		nVertexList.push_back(p0);
 		nVertexList.push_back(m2);

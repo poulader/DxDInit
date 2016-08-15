@@ -162,6 +162,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectInputHandler.h" />
+    <ClInclude Include="EPMathHelper.h" />
     <ClInclude Include="ShapesDemo.h" />
     <ClInclude Include="DirectXInit.h" />
     <ClInclude Include="DxAppBase.h" />
@@ -174,6 +175,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DirectInputHandler.cpp" />
+    <ClCompile Include="EPMathHelper.cpp" />
     <ClCompile Include="ShapesDemo.cpp" />
     <ClCompile Include="D:\Coding\Dx11\Common\MathHelper.cpp" />
     <ClCompile Include="DxAppBase.cpp" />

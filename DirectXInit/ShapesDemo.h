@@ -82,9 +82,6 @@ private:
 
 	//shapes test
 
-	//we just need one more for a quick shapes test
-	XMFLOAT4X4 mWorldSphere;
-
 	//and some index and vertex counts for our sphere (in full shapes demo we will probably need arrays of these)
 	UINT mShapesIndexCountSphere;
 	UINT mShapesVertexCountSphere;

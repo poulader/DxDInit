@@ -37,9 +37,6 @@ ShapesDemo::ShapesDemo(HINSTANCE hWnd)
 	XMStoreFloat4x4(&mWorld, I);
 	XMStoreFloat4x4(&mView, I);
 	XMStoreFloat4x4(&mProj, I);
-	
-	//quick shape test, have it float 10 units above origin
-	mWorldSphere = XMFLOAT4X4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,10,0,1);
 }
 
 ShapesDemo::~ShapesDemo()
@@ -126,13 +123,6 @@ void ShapesDemo::ProcSceneDraw()
 	UINT stride = sizeof(ShapesVertex);
 	UINT offset = 0;
 
-	//set vertex buffer
-	pContext->IASetVertexBuffers(0, 1, &pShapesVertexBuffer, &stride, &offset);
-
-	//set index buffer
-	pContext->IASetIndexBuffer(pShapesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-
 	//set constants
 	XMMATRIX world = XMLoadFloat4x4(&mWorld);
 	XMMATRIX view = XMLoadFloat4x4(&mView);
@@ -151,60 +141,10 @@ void ShapesDemo::ProcSceneDraw()
 	pContext->IASetVertexBuffers(0, 1, &pShapesVertexBuffer, &stride, &offset);
 	pContext->IASetIndexBuffer(pShapesIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-	XMMATRIX sphereWVP = XMMatrixIdentity();
-
-	//local to world transform
-	XMMATRIX sW = XMLoadFloat4x4(&mWorldSphere);
-
-	//view and proj same
-	sphereWVP = sW * view * proj;
-
-	////update our local copy ofconstant buffer
-	//pfxWorldViewProj->SetMatrix(reinterpret_cast<float*>(&sphereWVP));
-
-	//for (UINT p = 0; p < techDesc.Passes; ++p)
-	//{
-	//	pTech->GetPassByIndex(p)->Apply(0, pContext);
-
-	//	//draw our indices
-	//	pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
-	//}
-
-	//ok i want to draw the vertices of an icosahedron so i cn tell the best way to generate it
-
-	float X = 0.525731f;
-	float Z = 0.850651f;
-
-	XMFLOAT4X4 icoWorldTranslates[12];
-
-	//lets just translate 12 spheres to the way luna lays out vertices for the icosahedron
-	XMStoreFloat4x4(&icoWorldTranslates[0], XMMatrixTranslation(-X, 0.0f, Z));
-	XMStoreFloat4x4(&icoWorldTranslates[1], XMMatrixTranslation(X, 0.0f, Z));
-	XMStoreFloat4x4(&icoWorldTranslates[2], XMMatrixTranslation(-X, 0.0f, -Z));
-	XMStoreFloat4x4(&icoWorldTranslates[3], XMMatrixTranslation(X, 0.0f, -Z));
-
-	XMStoreFloat4x4(&icoWorldTranslates[4], XMMatrixTranslation(0.0f, Z, X));
-	XMStoreFloat4x4(&icoWorldTranslates[5], XMMatrixTranslation(0.0f, Z, -X));
-	XMStoreFloat4x4(&icoWorldTranslates[6], XMMatrixTranslation(0.0f, -Z, X));
-	XMStoreFloat4x4(&icoWorldTranslates[7], XMMatrixTranslation(0.0f, -Z, -X));
-
-	XMStoreFloat4x4(&icoWorldTranslates[8], XMMatrixTranslation(Z, X, 0.0f));
-	XMStoreFloat4x4(&icoWorldTranslates[9], XMMatrixTranslation(-Z, X, 0.0f));
-	XMStoreFloat4x4(&icoWorldTranslates[10], XMMatrixTranslation(Z, -X, 0.0f));
-	XMStoreFloat4x4(&icoWorldTranslates[11], XMMatrixTranslation(-Z, -X, 0.0f));
-
-	EPGeometry::EPGeometryGenerator::MeshData sphereTestMesh;
-	//quick test
-	EPGeometry::EPGeometryGenerator::CreateIcosahedron(3, sphereTestMesh);
-
 	for (UINT i = 0; i < 12; ++i)
 	{
 		for (UINT p = 0; p < techDesc.Passes; ++p)
 		{
-			sphereWVP = XMLoadFloat4x4(&icoWorldTranslates[i]) * view * proj;
-
-			pfxWorldViewProj->SetMatrix((float*)&sphereWVP);
-
 			pTech->GetPassByIndex(p)->Apply(0, pContext);
 
 			pContext->DrawIndexed(mShapesIndexCountSphere, 0, 0);
@@ -282,7 +222,7 @@ void ShapesDemo::BuildGeometryBuffers()
 	EPGeometry::EPGeometryGenerator::MeshData sphereTestMesh;
 
 	//quick shapes test
-	HRESULT sphereTestResult = EPGeometry::EPGeometryGenerator::CreateSphere(mSphereSlices, mSphereStacks, mSphereRadius, sphereTestMesh);
+	HRESULT sphereTestResult = EPGeometry::EPGeometryGenerator::CreateGeosphere(5.0f, 5, sphereTestMesh);
 
 	if (sphereTestResult != S_OK)
 		_CrtDbgBreak();
@@ -290,36 +230,31 @@ void ShapesDemo::BuildGeometryBuffers()
 	mShapesVertexCountSphere = sphereTestMesh.Vertices.size();
 	mShapesIndexCountSphere = sphereTestMesh.Indices.size();
 
-	std::vector<ShapesVertex> sphereTestVertices(mShapesVertexCountSphere);
+	std::vector<ShapesVertex> sphereTestVertices;
 
 	//end shape test
 
 	//do another pass for the sphere, change color slightly as height changes
 	FLOAT colorDelta = 1.0f /( mSphereStacks -2);
 
-	sphereTestVertices[0].Color = XMFLOAT4((float*)&Colors::Silver);
-	sphereTestVertices[0].Pos = sphereTestMesh.Vertices[0].Position;
-
-	sphereTestVertices[mShapesVertexCountSphere - 1].Color = XMFLOAT4((float*)&Colors::Silver);
-	sphereTestVertices[mShapesVertexCountSphere - 1].Pos = sphereTestMesh.Vertices[mShapesVertexCountSphere - 1].Position;
-
-	//ugh I have to do the iteration again ot color different layers
-	//need a more general color via height function
-	//I dont want to do it in geometry generator as that will be a more general class
-
-	for (UINT i = 0; i < mSphereStacks - 1; ++i)
+	for (UINT i = 0; i < mShapesVertexCountSphere; ++i)
 	{
-		FLOAT iterationColorDelta = (i + 1)*colorDelta;
-		XMVECTOR vRingColor = XMColorModulate(XMVectorReplicate(iterationColorDelta), Colors::White);
+		ShapesVertex v;
+		v.Pos = sphereTestMesh.Vertices[i].Position;
+		if (v.Pos.y >= 4.5f)
+			v.Color = XMFLOAT4(Colors::Green.f);
+		else if (v.Pos.y >= 3.0f)
+			v.Color = XMFLOAT4(Colors::Yellow.f);
+		else if (v.Pos.y >= 1.0f)
+			v.Color = XMFLOAT4(Colors::Magenta.f);
+		else if (v.Pos.y >= 0.0f)
+			v.Color = XMFLOAT4(Colors::Red.f);
+		else if (v.Pos.y <= -1.5f && v.Pos.y > -3.25f)
+			v.Color = XMFLOAT4(Colors::White.f);
+		else
+			v.Color = XMFLOAT4(Colors::Green.f);
 
-		for (UINT j = 0; j < mSphereSlices + 1; ++j)
-		{
-
-			XMStoreFloat4(&sphereTestVertices[1 + i*(mSphereSlices + 1) + j].Color, vRingColor);
-			sphereTestVertices[1 + i*(mSphereSlices + 1) + j].Pos = sphereTestMesh.Vertices[1 + i*(mSphereSlices + 1) + j].Position;
-
-		}
-
+		sphereTestVertices.push_back(v);
 	}
 
 	//end sphere test
