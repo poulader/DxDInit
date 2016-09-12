@@ -361,27 +361,3 @@ void ShapesDemo::BuildVertexLayout()
 	_dxMgr.UnlockMgr();
 
 }
-
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
-	PSTR cmdLine, int showCmd)
-{
-#ifdef _DEBUG
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
-
-#ifdef _testingMASM
-
-
-#endif
-
-	ShapesDemo theApp(hInstance);
-
-	if (!theApp.InitApp())
-	{
-		return 0;
-	}
-
-	return theApp.Run();
-
-}

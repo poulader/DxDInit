@@ -2,7 +2,6 @@
 
 
 /*
-Copyright (c) 2016, Eric Pouladian
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -54,9 +53,9 @@ DxAppBase::DxAppBase(HINSTANCE wndInstance)
 	handleMainWindow(NULL), bAppPaused(false), bAppMinimized(false), bAppMaximized(false),
 	bIsResizing(false), mClientWidth(1920), mClientHeight(1080), bFullScreen(false), maxFramesPerSecond(120)
 {
+	assert(globalDxApp == NULL);
 
 	globalDxApp = this;
-
 
 	resizeLock = CreateMutex(NULL, false, _T("BASE_LOCK"));
 
